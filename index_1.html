@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bloqueio de distribuidoras - CientyPay</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #F5F4F1;
+    color: #1F1E1B;
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  .subtitle { font-size: 14px; color: #6B6A64; margin: 0 0 24px; }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .metric-card { background: #EDEBE4; border-radius: 10px; padding: 16px; }
+  .metric-label { font-size: 12px; color: #6B6A64; margin: 0 0 4px; }
+  .metric-value { font-size: 22px; font-weight: 600; margin: 0; }
+  .panel { background: #fff; border: 1px solid #E2E0D8; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; }
+  .panel-title { font-size: 14px; font-weight: 600; margin: 0 0 12px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  input, select, textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid #D8D5CB; border-radius: 8px;
+    font-size: 14px; font-family: inherit; background: #fff; color: #1F1E1B;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #B8873E; }
+  button {
+    padding: 8px 14px; border: 1px solid #D8D5CB; border-radius: 8px; background: #fff;
+    font-size: 13px; font-weight: 500; cursor: pointer; color: #1F1E1B;
+  }
+  button:hover { background: #F5F4F1; }
+  button.primary { background: #B8873E; color: #fff; border-color: #B8873E; }
+  button.primary:hover { background: #A5772F; }
+  .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-btn.active { background: #1F1E1B; color: #fff; border-color: #1F1E1B; }
+  .card { background: #fff; border: 1px solid #E2E0D8; border-radius: 12px; padding: 16px 20px; margin-bottom: 10px; }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .cliente-nome { font-size: 15px; font-weight: 600; margin: 0; }
+  .cliente-dist { font-size: 13px; color: #6B6A64; margin: 2px 0 0; }
+  .cliente-data { font-size: 12px; color: #9A988F; margin: 4px 0 0; }
+  .actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .status-badge { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: none; font-weight: 500; }
+  .status-pendente { background: #FCEFD9; color: #7A5210; }
+  .status-em_analise { background: #DCEBFA; color: #0F4C81; }
+  .status-bloqueado { background: #FBDEDE; color: #8A2323; }
+  .status-negado { background: #E8E6DF; color: #4E4C46; }
+  .remove-btn { font-size: 12px; padding: 4px 8px; color: #8A2323; }
+  .toggle-comments { width: 100%; text-align: left; margin-top: 10px; font-size: 13px; background: #FAF9F6; }
+  .comments-box { margin-top: 10px; border-top: 1px solid #E2E0D8; padding-top: 10px; }
+  .comment { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #F0EEE7; }
+  .comment-text { font-size: 13px; margin: 0; }
+  .comment-date { font-size: 11px; color: #9A988F; margin: 2px 0 0; }
+  .comment-form { display: flex; gap: 8px; margin-top: 8px; }
+  .empty { text-align: center; color: #9A988F; font-size: 14px; padding: 40px 0; }
+  #config-screen { display: none; }
+  .config-box { max-width: 480px; margin: 60px auto; background: #fff; border: 1px solid #E2E0D8; border-radius: 12px; padding: 24px; }
+  .config-box p { font-size: 13px; color: #6B6A64; line-height: 1.5; }
+  #app-screen { display: none; }
+</style>
+</head>
+<body>
+
+<div id="config-screen">
+  <div class="config-box">
+    <h1>Configurar conexão</h1>
+    <p>Cole aqui a URL do "App da Web" gerada no Apps Script da sua planilha Google Sheets. Isso só precisa ser feito uma vez neste navegador.</p>
+    <input id="api-url-input" type="text" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom: 10px;" />
+    <button class="primary" id="save-config-btn" style="width: 100%;">Salvar e continuar</button>
+  </div>
+</div>
+
+<div id="app-screen">
+  <div class="wrap">
+    <h1>Bloqueio de distribuidoras - CientyPay</h1>
+    <p class="subtitle">Clientes que solicitaram bloqueio por não concordar com o modelo de envio de boletos.</p>
+
+    <div class="metrics" id="metrics"></div>
+
+    <div class="panel">
+      <p class="panel-title">Novo pedido de bloqueio</p>
+      <div class="row">
+        <input id="input-cliente" type="text" placeholder="Nome do cliente" />
+        <input id="input-distribuidora" type="text" placeholder="Distribuidora" />
+      </div>
+      <div style="display:flex; gap:10px;">
+        <select id="input-status" style="flex:1;">
+          <option value="pendente">Pendente</option>
+          <option value="em_analise">Em análise</option>
+          <option value="bloqueado">Bloqueado</option>
+          <option value="negado">Negado</option>
+        </select>
+        <button class="primary" id="btn-add">Adicionar</button>
+      </div>
+    </div>
+
+    <div class="filters">
+      <button data-filter="todos" class="filter-btn active">Todos</button>
+      <button data-filter="pendente" class="filter-btn">Pendentes</button>
+      <button data-filter="em_analise" class="filter-btn">Em análise</button>
+      <button data-filter="bloqueado" class="filter-btn">Bloqueados</button>
+      <button data-filter="negado" class="filter-btn">Negados</button>
+    </div>
+
+    <div id="list"></div>
+    <p id="empty-state" class="empty" style="display:none;">Nenhum pedido ainda. Adicione o primeiro cliente acima.</p>
+    <p id="loading-state" class="empty">Carregando...</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var apiUrl = 'https://script.google.com/a/macros/cienty.com.br/s/AKfycbwzY_ey6Q7G-erSHka7oa9W8G7BbhUSVX0_5pmro4RoQ6RmhSQRlnhYozxTMTKVPAr7/exec';
+  var clientes = [];
+  var comentarios = [];
+  var currentFilter = 'todos';
+  var expandedId = null;
+
+  var statusLabels = {
+    pendente: 'Pendente',
+    em_analise: 'Em análise',
+    bloqueado: 'Bloqueado',
+    negado: 'Negado'
+  };
+
+  document.getElementById('app-screen').style.display = 'block';
+  loadData();
+
+  function apiGet() {
+    return fetch(apiUrl).then(function (r) { return r.json(); });
+  }
+
+  function apiAction(params) {
+    var url = apiUrl + '?' + new URLSearchParams(params).toString();
+    return fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+      clientes = data.clientes || [];
+      comentarios = data.comentarios || [];
+      render();
+    });
+  }
+
+  function loadData() {
+    document.getElementById('loading-state').style.display = 'block';
+    apiGet().then(function (data) {
+      clientes = data.clientes || [];
+      comentarios = data.comentarios || [];
+      document.getElementById('loading-state').style.display = 'none';
+      render();
+    }).catch(function (err) {
+      document.getElementById('loading-state').textContent = 'Não consegui conectar com a planilha. Verifique a URL configurada.';
+      console.error(err);
+    });
+  }
+
+  function formatDate(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function renderMetrics() {
+    var total = clientes.length;
+    var bloqueados = clientes.filter(function (c) { return c.Status === 'bloqueado'; }).length;
+    var pendentes = clientes.filter(function (c) { return c.Status === 'pendente' || c.Status === 'em_analise'; }).length;
+
+    var counts = {};
+    clientes.forEach(function (c) {
+      if (!c.Distribuidora) return;
+      counts[c.Distribuidora] = (counts[c.Distribuidora] || 0) + 1;
+    });
+    var topDist = '-', topCount = 0;
+    Object.keys(counts).forEach(function (k) {
+      if (counts[k] > topCount) { topCount = counts[k]; topDist = k; }
+    });
+
+    var metrics = [
+      { label: 'Total de pedidos', value: total },
+      { label: 'Bloqueados', value: bloqueados },
+      { label: 'Em aberto', value: pendentes },
+      { label: 'Distribuidora mais citada', value: topDist === '-' ? '-' : topDist + ' (' + topCount + ')' }
+    ];
+
+    document.getElementById('metrics').innerHTML = metrics.map(function (m) {
+      return '<div class="metric-card"><p class="metric-label">' + m.label + '</p><p class="metric-value">' + m.value + '</p></div>';
+    }).join('');
+  }
+
+  function renderList() {
+    var filtered = currentFilter === 'todos' ? clientes : clientes.filter(function (c) { return c.Status === currentFilter; });
+    var listEl = document.getElementById('list');
+    var emptyEl = document.getElementById('empty-state');
+
+    document.querySelectorAll('.filter-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.filter === currentFilter);
+    });
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    var sorted = filtered.slice().sort(function (a, b) {
+      return new Date(b.DataCriacao) - new Date(a.DataCriacao);
+    });
+
+    listEl.innerHTML = sorted.map(function (c) {
+      var expanded = expandedId === c.ID;
+      var comentariosCliente = comentarios.filter(function (cm) { return cm.ClienteID === c.ID; });
+
+      return (
+        '<div class="card">' +
+          '<div class="card-top">' +
+            '<div>' +
+              '<p class="cliente-nome">' + escapeHtml(c.Cliente) + '</p>' +
+              '<p class="cliente-dist">' + escapeHtml(c.Distribuidora || 'Distribuidora não informada') + '</p>' +
+              '<p class="cliente-data">Criado em ' + formatDate(c.DataCriacao) + '</p>' +
+            '</div>' +
+            '<div class="actions">' +
+              '<select data-id="' + c.ID + '" class="status-select status-' + c.Status + '">' +
+              Object.keys(statusLabels).map(function (s) {
+                return '<option value="' + s + '"' + (s === c.Status ? ' selected' : '') + '>' + statusLabels[s] + '</option>';
+              }).join('') +
+              '</select>' +
+              '<button data-id="' + c.ID + '" class="remove-btn">Remover</button>' +
+            '</div>' +
+          '</div>' +
+          '<button data-id="' + c.ID + '" class="toggle-comments">' +
+            'Comentários (' + comentariosCliente.length + ') ' + (expanded ? '▲' : '▼') +
+          '</button>' +
+          (expanded ?
+            '<div class="comments-box">' +
+              (comentariosCliente.length === 0 ?
+                '<p class="empty" style="padding:8px 0;">Nenhum comentário ainda.</p>' :
+                comentariosCliente.slice().reverse().map(function (cm) {
+                  return '<div class="comment"><p class="comment-text">' + escapeHtml(cm.Texto) + '</p><p class="comment-date">' + formatDate(cm.Data) + '</p></div>';
+                }).join('')
+              ) +
+              '<div class="comment-form">' +
+                '<input type="text" class="comment-input" data-id="' + c.ID + '" placeholder="Adicionar comentário" />' +
+                '<button class="add-comment-btn" data-id="' + c.ID + '">Enviar</button>' +
+              '</div>' +
+            '</div>'
+            : '') +
+        '</div>'
+      );
+    }).join('');
+
+    listEl.querySelectorAll('.status-select').forEach(function (sel) {
+      sel.addEventListener('change', function (e) {
+        var id = e.target.dataset.id;
+        var status = e.target.value;
+        var cli = clientes.find(function (c) { return c.ID === id; });
+        if (cli) cli.Status = status;
+        renderList();
+        apiAction({ action: 'update_status', id: id, status: status });
+      });
+    });
+    listEl.querySelectorAll('.remove-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        var id = e.target.dataset.id;
+        if (!confirm('Remover este cliente e seus comentários?')) return;
+        clientes = clientes.filter(function (c) { return c.ID !== id; });
+        comentarios = comentarios.filter(function (cm) { return cm.ClienteID !== id; });
+        render();
+        apiAction({ action: 'delete_cliente', id: id });
+      });
+    });
+    listEl.querySelectorAll('.toggle-comments').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        var id = e.target.dataset.id;
+        expandedId = expandedId === id ? null : id;
+        renderList();
+      });
+    });
+    listEl.querySelectorAll('.add-comment-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        var id = e.target.dataset.id;
+        var input = listEl.querySelector('.comment-input[data-id="' + id + '"]');
+        var texto = input.value.trim();
+        if (!texto) return;
+        input.value = '';
+        apiAction({ action: 'add_comment', clienteId: id, texto: texto });
+      });
+    });
+    listEl.querySelectorAll('.comment-input').forEach(function (inp) {
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          var id = e.target.dataset.id;
+          listEl.querySelector('.add-comment-btn[data-id="' + id + '"]').click();
+        }
+      });
+    });
+  }
+
+  function render() {
+    renderMetrics();
+    renderList();
+  }
+
+  document.getElementById('btn-add').addEventListener('click', function () {
+    var cliente = document.getElementById('input-cliente').value.trim();
+    var distribuidora = document.getElementById('input-distribuidora').value.trim();
+    var status = document.getElementById('input-status').value;
+    if (!cliente) return;
+    document.getElementById('input-cliente').value = '';
+    document.getElementById('input-distribuidora').value = '';
+    apiAction({ action: 'add_cliente', cliente: cliente, distribuidora: distribuidora, status: status });
+  });
+
+  document.querySelectorAll('.filter-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      currentFilter = btn.dataset.filter;
+      renderList();
+    });
+  });
+})();
+</script>
+</body>
+</html>
